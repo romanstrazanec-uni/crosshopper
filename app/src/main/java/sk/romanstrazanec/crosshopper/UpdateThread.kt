@@ -1,23 +1,15 @@
-package sk.romanstrazanec.crosshopper;
+package sk.romanstrazanec.crosshopper
 
-import android.os.Handler;
+import android.os.Handler
 
-public class UpdateThread extends Thread {
-    Handler updatingHandler;
-
-    public UpdateThread(Handler uh) {
-        super();
-        updatingHandler = uh;
-    }
-
-    @Override
-    public void run() {
+class UpdateThread(private var updatingHandler: Handler) : Thread() {
+    override fun run() {
         while (true) {
             try {
-                this.sleep(50);
-            } catch (Exception ex) {
+                sleep(50)
+            } catch (ex: Exception) {
             }
-            updatingHandler.sendEmptyMessage(0);
+            updatingHandler.sendEmptyMessage(0)
         }
     }
 }

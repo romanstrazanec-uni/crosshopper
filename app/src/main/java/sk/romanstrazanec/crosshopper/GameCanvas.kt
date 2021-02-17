@@ -1,204 +1,194 @@
-package sk.romanstrazanec.crosshopper;
+package sk.romanstrazanec.crosshopper
 
-import android.content.Context;
-import android.graphics.Bitmap;
-import android.graphics.BitmapFactory;
-import android.graphics.Canvas;
-import android.graphics.Color;
-import android.graphics.Paint;
-import android.graphics.Point;
-import android.view.Display;
-import android.view.MotionEvent;
-import android.view.View;
-import android.view.WindowManager;
+import android.content.Context
+import android.graphics.*
+import android.view.MotionEvent
+import android.view.View
+import android.view.WindowManager
+import java.util.*
 
-import java.util.ArrayList;
+class GameCanvas(context: Context) : View(context) {
+    private var paint: Paint = Paint()
+    private var pic: Bitmap? = null
+    private var bunny: Bunny
+    private var carrot: Carrot
+    private var cars: ArrayList<Car>
+    private var carWidth: Int
+    private var maxX = 0f
+    private var maxY = 0f
 
-public class GameCanvas extends View {
-    Paint paint;
-    Bitmap pic;
-    Bunny bunny;
-    Carrot carrot;
-    ArrayList<Car> cars;
+    // autá z ľavej strany
+    private var leftRoads: FloatArray
 
-    int carWidth;
-    float maxX, maxY; //maxX=1080 maxY=1776
-
-    // y-nové súradnice, kde sa môžu generovať autá
-    float[] leftRoads; // autá z ľavej strany
-    float[] rightRoads; // autá z pravej strany
+    // autá z pravej strany
+    private var rightRoads: FloatArray
 
     // aby sa negenerovali autá na tej istej ceste
-    int previousLeftRoad = -1;
-    int previousRightRoad = -1;
-    int previousCarrotLayer = 0; // kde bol pred tým carrot
-    float[] layers; // y-nové súradnice, kam môže bunny ísť
-    int bunnyLayer; // kde je bunny
-    int score;
+    private var previousLeftRoad = -1
+    private var previousRightRoad = -1
+    private var previousCarrotLayer = 0 // kde bol pred tým carrot
+    private var layers: FloatArray // y-nové súradnice, kam môže bunny ísť
 
-    public GameCanvas(Context context) {
-        super(context);
-        paint = new Paint();
-        setbg(context);
+    private var bunnyLayer: Int // kde je bunny
 
-        leftRoads = new float[]{.269144f * maxY, .347973f * maxY, .573198f * maxY, .797254f * maxY}; //478.0f, 618.0f, 1018.0f, 1418.0f
-        rightRoads = new float[]{.094595f * maxY, .184685f * maxY, .488739f * maxY, .713964f * maxY}; // 168.0f, 328.0f, 868.0f, 1268.0f
-        layers = new float[]{.038288f * maxY, .111486f * maxY, .195946f * maxY, .280405f * maxY, .359234f * maxY, .432432f * maxY, .5f * maxY, .584459f * maxY, .657658f * maxY, .725225f * maxY, .809685f * maxY, .882883f * maxY};
+    private var score: Int
 
-        carWidth = (int) maxX / 9;
-        bunnyLayer = layers.length - 1;
-        bunny = new Bunny(maxX / 2, layers[bunnyLayer], (int) (maxY / 35.52f), Color.WHITE);
-        carrot = new Carrot(maxX / 2, layers[previousCarrotLayer], Color.rgb(255, 155, 0));
-        cars = new ArrayList<>();
-        score = 0;
+    private fun setbg(context: Context) {
+        val pozadie = Bitmap.createBitmap(BitmapFactory.decodeResource(this.resources, R.drawable.background_image))
+        val wm = context.getSystemService(Context.WINDOW_SERVICE) as WindowManager
+        val display = wm.defaultDisplay
+        val size = Point()
+        display.getSize(size)
+        maxX = size.x.toFloat()
+        maxY = size.y.toFloat()
+        pic = Bitmap.createScaledBitmap(pozadie, size.x, size.y, false)
     }
 
-    private void setbg(Context context) {
-        Bitmap pozadie = Bitmap.createBitmap(BitmapFactory.decodeResource(this.getResources(), R.drawable.background_image));
-        WindowManager wm = (WindowManager) context.getSystemService(Context.WINDOW_SERVICE);
-        Display display = wm.getDefaultDisplay();
-        Point size = new Point();
-        display.getSize(size);
-        maxX = size.x;
-        maxY = size.y;
-        pic = Bitmap.createScaledBitmap(pozadie, size.x, size.y, false);
-    }
-
-    public void update() {
+    fun update() {
         // ak bunny zasiahnutý
         if (crash()) {
-            score = 0;
-            bunnyLayer = layers.length - 1;
-            previousCarrotLayer = 0;
-            carrot.setY(layers[previousCarrotLayer]);
-            bunny.setY(layers[bunnyLayer]);
+            score = 0
+            bunnyLayer = layers.size - 1
+            previousCarrotLayer = 0
+            carrot.y = layers[previousCarrotLayer]
+            bunny.y = layers[bunnyLayer]
         }
 
         // ak zoberie mrkvu
-        if (bunny.getY() == carrot.getY()) {
-            score++;
-            carrot.setY(randomCarrotPosition());
+        if (bunny.y == carrot.y) {
+            score++
+            carrot.y = randomCarrotPosition()
         }
-
-        if (cars.size() < 7) {
+        if (cars.size < 7) {
             if (Math.random() > 0.9) {
-                cars.add(new Car(0 - carWidth, randomLeftRoad(), carWidth, (int) (maxY / 35.52),
-                        Color.rgb(100 + (int) (Math.random() * 156), 100 + (int) (Math.random() * 156), 100 + (int) (Math.random() * 156)),
-                        30 + (int) (Math.random() * 21), 1));
+                cars.add(Car((0 - carWidth).toFloat(), randomLeftRoad(), carWidth, (maxY / 35.52).toInt(),
+                        Color.rgb(100 + (Math.random() * 156).toInt(), 100 + (Math.random() * 156).toInt(), 100 + (Math.random() * 156).toInt()),
+                        30 + (Math.random() * 21).toInt(), 1))
             }
             if (Math.random() > 0.9) {
-                cars.add(new Car(maxX, randomRightRoad(), carWidth, (int) (maxY / 35.52),
-                        Color.rgb(100 + (int) (Math.random() * 156), 100 + (int) (Math.random() * 156), 100 + (int) (Math.random() * 156)),
-                        (30 + (int) (Math.random() * 21)), -1));
+                cars.add(Car(maxX, randomRightRoad(), carWidth, (maxY / 35.52).toInt(),
+                        Color.rgb(100 + (Math.random() * 156).toInt(), 100 + (Math.random() * 156).toInt(), 100 + (Math.random() * 156).toInt()),
+                        30 + (Math.random() * 21).toInt(), -1))
             }
         }
-
-        if (cars.size() > 0) {
-            Car c;
-            for (int i = cars.size() - 1; i >= 0; i--) {
-                c = (Car) cars.get(i);
-                c.move();
-                if (c.getX() > maxX || c.getX() + c.getWidth() < 0) cars.remove(i);
+        if (cars.size > 0) {
+            var c: Car
+            for (i in cars.indices.reversed()) {
+                c = cars[i]
+                c.move()
+                if (c.x > maxX || c.x + c.width < 0) cars.removeAt(i)
             }
         }
     }
 
-    private float randomLeftRoad() {
-        int i;
+    private fun randomLeftRoad(): Float {
+        var i: Int
         do {
-            i = (int) (Math.random() * leftRoads.length);
-        } while (i == previousLeftRoad);
-        previousLeftRoad = i;
-        return leftRoads[i];
+            i = (Math.random() * leftRoads.size).toInt()
+        } while (i == previousLeftRoad)
+        previousLeftRoad = i
+        return leftRoads[i]
     }
 
-    private float randomRightRoad() {
-        int i;
+    private fun randomRightRoad(): Float {
+        var i: Int
         do {
-            i = (int) (Math.random() * rightRoads.length);
-        } while (i == previousRightRoad);
-        previousRightRoad = i;
-        return rightRoads[i];
+            i = (Math.random() * rightRoads.size).toInt()
+        } while (i == previousRightRoad)
+        previousRightRoad = i
+        return rightRoads[i]
     }
 
-    private float randomCarrotPosition() {
-        int i;
+    private fun randomCarrotPosition(): Float {
+        var i: Int
         do {
-            i = (int) (Math.random() * layers.length);
-        } while (i == previousCarrotLayer);
-        previousCarrotLayer = i;
-        return layers[i];
+            i = (Math.random() * layers.size).toInt()
+        } while (i == previousCarrotLayer)
+        previousCarrotLayer = i
+        return layers[i]
     }
 
-    public boolean onTouchEvent(MotionEvent event) {
-        int e = event.getAction();
-
+    override fun onTouchEvent(event: MotionEvent): Boolean {
+        val e = event.action
         if (e == MotionEvent.ACTION_DOWN) {
-            if (event.getY() > bunny.getY()) {
-                moveBunnyDown();
+            if (event.y > bunny.y) {
+                moveBunnyDown()
             } else {
-                moveBunnyUp();
+                moveBunnyUp()
             }
-            invalidate();
+            invalidate()
         }
-        return true;
+        return true
     }
 
-    private void moveBunnyUp() {
+    private fun moveBunnyUp() {
         if (bunnyLayer - 1 > -1) {
-            bunnyLayer--;
-            bunny.setY(layers[bunnyLayer]);
+            bunnyLayer--
+            bunny.y = layers[bunnyLayer]
         }
     }
 
-    private void moveBunnyDown() {
-        if (bunnyLayer + 1 < layers.length) {
-            bunnyLayer++;
-            bunny.setY(layers[bunnyLayer]);
+    private fun moveBunnyDown() {
+        if (bunnyLayer + 1 < layers.size) {
+            bunnyLayer++
+            bunny.y = layers[bunnyLayer]
         }
     }
 
-    private boolean crash() {
-        for (int i = 0; i < cars.size(); i++) {
-            if (isNear((Car) cars.get(i))) return true;
+    private fun crash(): Boolean {
+        for (i in cars.indices) {
+            if (isNear(cars[i])) return true
         }
-        return false;
+        return false
     }
 
-    private boolean isNear(Car c) {
-        return (bunny.getY() < c.getY() + c.getHeight() && bunny.getY() > c.getY()) && (bunny.getX() + bunny.getR() > c.getX() && bunny.getX() - bunny.getR() < c.getX() + c.getWidth());
+    private fun isNear(c: Car): Boolean {
+        return bunny.y < c.y + c.height && bunny.y > c.y && bunny.x + bunny.r > c.x && bunny.x - bunny.r < c.x + c.width
     }
 
-    protected void onDraw(Canvas canvas) {
-        canvas.drawBitmap(pic, 0, 0, paint);
-        drawBunny(canvas);
-        drawCarrot(canvas);
-        drawScoreCounter(canvas);
-        for (int i = 0; i < cars.size(); i++) {
-            drawCar(canvas, (Car) cars.get(i));
+    override fun onDraw(canvas: Canvas) {
+        canvas.drawBitmap(pic!!, 0f, 0f, paint)
+        drawBunny(canvas)
+        drawCarrot(canvas)
+        drawScoreCounter(canvas)
+        for (i in cars.indices) {
+            drawCar(canvas, cars[i])
         }
     }
 
-    private void drawBunny(Canvas canvas) {
-        paint.setColor(bunny.getColor());
-        canvas.drawCircle(bunny.getX(), bunny.getY(), bunny.getR(), paint);
+    private fun drawBunny(canvas: Canvas) {
+        paint.color = bunny.color
+        canvas.drawCircle(bunny.x, bunny.y, bunny.r.toFloat(), paint)
     }
 
-    private void drawCar(Canvas canvas, Car c) {
-        paint.setColor(c.getColor());
-        canvas.drawRect(c.getX(), c.getY(), c.getX() + c.getWidth(), c.getY() + c.getHeight(), paint);
+    private fun drawCar(canvas: Canvas, c: Car) {
+        paint.color = c.color
+        canvas.drawRect(c.x, c.y, c.x + c.width, c.y + c.height, paint)
     }
 
-    private void drawCarrot(Canvas canvas) {
-        paint.setColor(carrot.getColor());
-        canvas.drawCircle(carrot.getX(), carrot.getY(), (int) (maxY / 59.2), paint);
+    private fun drawCarrot(canvas: Canvas) {
+        paint.color = carrot.color
+        canvas.drawCircle(carrot.x, carrot.y, maxY / 59.2f, paint)
     }
 
-    private void drawScoreCounter(Canvas canvas) {
-        paint.setColor(Color.WHITE);
-        canvas.drawRect((int) (maxY / 177.6), (int) (maxY / 177.6), (int) (maxY / 14.8), (int) (maxY / 25.37), paint);
-        paint.setColor(Color.BLACK);
-        paint.setTextSize((int) (maxY / 25.37));
-        canvas.drawText("" + score, (int) (maxY / 118.4), (int) (maxY / 27.32), paint);
+    private fun drawScoreCounter(canvas: Canvas) {
+        paint.color = Color.WHITE
+        canvas.drawRect(maxY / 177.6f, maxY / 177.6f, maxY / 14.8f, maxY / 25.37f, paint)
+        paint.color = Color.BLACK
+        paint.textSize = maxY / 25.37f
+        canvas.drawText("" + score, maxY / 118.4f, maxY / 27.32f, paint)
+    }
+
+    init {
+        setbg(context)
+        leftRoads = floatArrayOf(.269144f * maxY, .347973f * maxY, .573198f * maxY, .797254f * maxY) //478.0f, 618.0f, 1018.0f, 1418.0f
+        rightRoads = floatArrayOf(.094595f * maxY, .184685f * maxY, .488739f * maxY, .713964f * maxY) // 168.0f, 328.0f, 868.0f, 1268.0f
+        layers = floatArrayOf(.038288f * maxY, .111486f * maxY, .195946f * maxY, .280405f * maxY, .359234f * maxY, .432432f * maxY, .5f * maxY, .584459f * maxY, .657658f * maxY, .725225f * maxY, .809685f * maxY, .882883f * maxY)
+        carWidth = maxX.toInt() / 9
+        bunnyLayer = layers.size - 1
+        bunny = Bunny(maxX / 2, layers[bunnyLayer], (maxY / 35.52f).toInt(), Color.WHITE)
+        carrot = Carrot(maxX / 2, layers[previousCarrotLayer], Color.rgb(255, 155, 0))
+        cars = ArrayList()
+        score = 0
     }
 }
